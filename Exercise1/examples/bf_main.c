@@ -21,35 +21,36 @@ int main() {
 
 
 
-  /* Πρώτο Μέρος: χρήση της βιβλιοθήκης για block η οποία δημιουργεί ένα
-  αρχείο με 10 block, μεταφέρει το καθένα από τα blocks στην ενδιάμεση
-  μνήμη και γράφει δύο εγγραφές στην αρχή του κάθε block. Για να
-  καταγραφούν οι αλλαγές  στον δίσκο, χρειάζεται να γίνει dirty το block
-  και unpin για να μην γεμίσει η ενδιάμεση μνήμη. Μπορούμε να ανοίξουμε
-  το αρχείο block_example.db για να δούμε τα περιεχόμενά του.
-  */
+  /* First Part: use of the block library to create a file
+   * with 10 blocks, load each block into the buffer
+   * and write two records at the beginning of each block. In order
+   * for the changes to be written to disk, the block must be marked
+   * as dirty and unpinned so that the buffer does not fill up. We can
+   * open the file block_example.db to inspect its contents.
+   */
   CALL_OR_DIE(BF_Init(LRU));
   CALL_OR_DIE(BF_CreateFile("block_example.db"))
   CALL_OR_DIE(BF_OpenFile("block_example.db", &fd1));
 
   void* data;
   for (int i = 0; i < 100; ++i) {
-    CALL_OR_DIE(BF_AllocateBlock(fd1, block));  // Δημιουργία καινούριου block
-    data = BF_Block_GetData(block);             // Τα περιεχόμενα του block στην ενδιάμεση μνήμη
-    Record* rec = data;                         // Ο δείκτης rec δείχνει στην αρχή της περιοχής μνήμης data
+    CALL_OR_DIE(BF_AllocateBlock(fd1, block));  // Allocate a new block
+    data = BF_Block_GetData(block);             // The contents of the block in the buffer
+    Record* rec = data;                         // Pointer rec points to the beginning of memory area data
     rec[0] = randomRecord();
     rec[1] = randomRecord();
     BF_Block_SetDirty(block);
     CALL_OR_DIE(BF_UnpinBlock(block));
   }
-  CALL_OR_DIE(BF_CloseFile(fd1));               //Κλείσιμο αρχείου και αποδέσμευση μνήμης
+  CALL_OR_DIE(BF_CloseFile(fd1));               // Close file and release memory
   CALL_OR_DIE(BF_Close());
 
 
 
 
-  /* Δεύτερο Μέρος: χρήση της βιβλιοθήκης για block η οποία διαβάζει
-  από κάθε block τα δύο πρώτα records.*/
+  /* Second Part: use of the block library to read
+   * the first two records from each block.
+   */
 
   CALL_OR_DIE(BF_Init(LRU));
   CALL_OR_DIE(BF_OpenFile("block_example.db", &fd1));
@@ -72,4 +73,3 @@ int main() {
   CALL_OR_DIE(BF_Close());
 
 }
-

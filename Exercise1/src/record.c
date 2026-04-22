@@ -4,42 +4,42 @@
 #include <record.h>
 
 const char* names[] = {
-    "Alexandros",  // Αλέξανδρος
-    "Sofia",       // Σοφία
-    "Dimitris",    // Δημήτρης
-    "Anna",        // Αννα
-    "Konstantinos",// Κωνσταντίνος
-    "Maria",       // Μαρία
-    "Georgios",    // Γεώργιος
-    "Eleni",       // Ελένη
-    "Petros",      // Πέτρος
-    "Evangelia"    // Ευαγγελία
+    "Alexandros",  
+    "Sofia",       
+    "Dimitris",    
+    "Anna",       
+    "Konstantinos",
+    "Maria",      
+    "Georgios",   
+    "Eleni",      
+    "Petros",     
+    "Evangelia"    
 };
 
 
 const char* surnames[] = {
-    "Papadopoulos",   // Παπαδόπουλος
-    "Georgiou",       // Γεωργίου
-    "Dimitriou",      // Δημητρίου
-    "Anagnostopoulos",// Αναγνωστόπουλος
-    "Karagiannis",    // Καραγιάννης
-    "Mavromatis",     // Μαυρομάτης
-    "Nikolaou",       // Νικολάου
-    "Christodoulou",  // Χριστοδούλου
-    "Kostopoulos",    // Κωστόπουλος
-    "Stamatopoulos"   // Σταματόπουλος
+    "Papadopoulos",   
+    "Georgiou",       
+    "Dimitriou",     
+    "Anagnostopoulos",
+    "Karagiannis",    
+    "Mavromatis",    
+    "Nikolaou",      
+    "Christodoulou",  
+    "Kostopoulos",    
+    "Stamatopoulos"   
 };
 
 const char* cities[] = {
-    "Athina",     // Αθήνα
-    "Patra",      // Πάτρα
-    "Irakleio",   // Ηράκλειο
-    "Larisa",     // Λάρισα
-    "Volos",      // Βόλος
-    "Ioannina",   // Ιωάννινα
-    "Chania",     // Χανιά
-    "Kalamata",   // Καλαμάτα
-    "Rodos"       // Ρόδος
+    "Athina",    
+    "Patra",    
+    "Irakleio",   
+    "Larisa",    
+    "Volos",    
+    "Ioannina",   
+    "Chania",     
+    "Kalamata",  
+    "Rodos"       
 };
 
 
