@@ -8,3 +8,4 @@ hp:
 
 clean:
 	rm -rf build/*
+	rm *.db
