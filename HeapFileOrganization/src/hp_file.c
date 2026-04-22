@@ -156,12 +156,6 @@ HP_info* HP_OpenFile(char *fileName, int *file_desc){
 
 int HP_CloseFile(int file_desc,HP_info* hp_info ){
   int error;
-  BF_Block* block;
-  // there is no need to unpin the blocks here because each operation,
-  // for example insert, will unpin when it finishes
-  // (in our own function implementations we handle the unpin ourselves)
-  BF_Block_Init(&block);
-  BF_Block_Destroy(&block);
   
   error = BF_CloseFile(file_desc);
   if(error != BF_OK){
@@ -364,7 +358,7 @@ int HP_GetAllEntries(int file_desc,HP_info* hp_info, int value){
 
     int blocks_read = 0;
 
-    for(int i = 1; i < hp_info->number_of_blocks; i++){
+    for(int i = hp_info->first_block_with_records; i < hp_info->number_of_blocks; i++){
 
       int error = BF_GetBlock(file_desc, i, block);
       if(error != BF_OK){
