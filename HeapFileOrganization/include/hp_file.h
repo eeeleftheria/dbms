@@ -9,14 +9,14 @@ typedef struct {
     int last_block;
     int number_of_blocks;
     int records_per_block;
-    BF_Block* first_block_with_records;
+    int first_block_with_records;
 } HP_info;
 
 /* Information stored for each block */
 typedef struct {
     int number_of_records;
     int current_block_capacity;
-    BF_Block* next_block;
+    int next_block;
 } HP_block_info;
 
 /*
