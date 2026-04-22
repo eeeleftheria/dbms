@@ -8,7 +8,7 @@
 #include "bp_indexnode.h"
 
 //################################################################################# //
-// ##### TEST FOR SEQUENTIAL INSERTION, DUPLICATE INSERTION AMD NON-EXISTENT SEARCH //
+// ##### TEST FOR SEQUENTIAL INSERTION, DUPLICATE INSERTION AND NON-EXISTENT SEARCH //
 // ################################################################################ //
 
 #define RECORDS_NUM 1000 // you can change it if you want
@@ -38,7 +38,7 @@ int main(){
 }
 
 
-// Ελεγχος για συνεχομενες εισαγωγες με id απο 0 εως 100
+// Test sequential insertions with ids from 1 to 100
 void testSequentialInsert() {
     printf("\n--- Testing Sequential Insertion ---\n");
     
@@ -48,7 +48,7 @@ void testSequentialInsert() {
     int file_desc;
     BPLUS_INFO* info = BP_OpenFile(FILE_NAME_1, &file_desc);
     
-    // Εισαγωγη 100 συνεχομενων εγγραφων
+    // Insert 100 consecutive records
     Record record;
     for (int i = 1; i <= 100; i++) {
         record.id = i;
@@ -62,9 +62,9 @@ void testSequentialInsert() {
         }
     }
     
-    // Επαληθευση αποτελεσματων
+    // Verify results
 
-    Record tmpRec; // Αντί για malloc
+    Record tmpRec; // Instead of malloc
     Record *result = &tmpRec;
 
     bool test_ok = true;
@@ -92,7 +92,7 @@ void testSequentialInsert() {
 }
 
 
-//Ελεγχος για εισαγωγη διπλοτυπων εγγραφων
+// Test duplicate record insertion
 void testDuplicateInsert(){
     printf("\n--- Testing Duplicate Insertion ---\n");
     
@@ -102,7 +102,7 @@ void testDuplicateInsert(){
     int file_desc;
     BPLUS_INFO* info = BP_OpenFile(FILE_NAME_2, &file_desc);
     
-    // Εισαγωγη 100 συνεχομενων εγγραφων
+    // Insert 100 consecutive records
     Record record;
     for (int i = 1; i <= 100; i++) {
         record.id = i;
@@ -131,7 +131,7 @@ void testDuplicateInsert(){
 }
 
 
-// Αναζητηση μη υπαρχουσων εγγραφων
+// Search for non-existent records
 void testSearchNonExistent(){
     printf("\n--- Testing Search for Non-existent Records ---\n");
     
@@ -157,7 +157,7 @@ void testSearchNonExistent(){
 
     Record* result = NULL;
 
-    //η πρωτη μονο εγγραφη πρεπει να βρεθει
+    // None of these records should be found
     int ids[] = {105, 115, 125, 135, 145};
     
     for(int i = 0; i < 5; i++) {

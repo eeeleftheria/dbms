@@ -23,8 +23,5 @@ test3:
 	./build/bp_test3
 
 clean:
-	rm -f ./build/bplus_main
-	rm -f ./build/bp_test1
-	rm -f ./build/bp_test2
-	rm -f ./build/bp_test3
+	rm -f ./build/*
 	rm -f *db
