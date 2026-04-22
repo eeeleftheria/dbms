@@ -5,6 +5,24 @@ A lightweight implementation of a heap-based storage system in C, built on top o
 The system stores records sequentially in fixed-size blocks and demonstrates how low-level storage mechanisms work, 
 including block management, record organization, and interaction with a buffered storage layer.
 
+## Quick Start
+
+Build and run the BF demo:
+```bash
+make bf
+./build/bf_main
+```
+
+Build and run the heap-file demo:
+```bash
+make hp
+./build/hp_main
+```
+Clean all build and database files:
+```bash
+make clean
+```
+
 ## Features
 
 - Create and manage heap files
@@ -12,6 +30,23 @@ including block management, record organization, and interaction with a buffered
 - Retrieve records by key
 - Maintain file metadata across blocks
 - Integrate with a block-level storage layer
+
+## Project Layout
+
+```text
+HeapFileOrganization/
+    include/
+        bf_file.h      # Public block-file API
+        hp_file.h      # Public heap-file API
+        record.h       # Record definition
+    src/
+        hp_file.c      # Heap-file implementation
+        record.c       # Record utilities
+    examples/
+        hp_main.c      # Heap-file demo
+        bf_main.c      # BF layer demo
+    build/           # Generated binaries
+```
 
 ## Underlying System
 
@@ -38,17 +73,19 @@ typedef struct {
 } Record;
 ```
 
+## API Overview
 
-## Build & Run
+Main functions (declared in `include/hp_file.h`):
 
-To compile and run the example program that demonstrates the BF library:
-```bash
-make bf
-./build/bf_main
-```
+- `HP_CreateFile`: Creates and initializes a new heap file
+- `HP_OpenFile`: Opens a heap file and loads metadata
+- `HP_CloseFile`: Closes the heap file and releases resources
+- `HP_InsertEntry`: Inserts a record and returns the block id
+- `HP_GetAllEntries`: Prints matching records by `id` and returns blocks read
 
-To compile and run the example program implemented with HP
-```bash
-make hp
-./build/hp_main
-```
+Return convention:
+- `0` on success for create/close operations
+- `-1` on failure (`HP_ERROR`)
+- Block id or blocks-read count where applicable
+
+
