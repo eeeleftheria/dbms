@@ -7,7 +7,7 @@
 #include "bp_file.h"
 #include "record.h"
 
-//δημιουργια ενος κενου μπλοκ ευρετηριου
+// create an empty index block
 int create_index_node(int file_desc, BPLUS_INFO* bplus_info){
     
     BF_Block* block;
@@ -16,25 +16,25 @@ int create_index_node(int file_desc, BPLUS_INFO* bplus_info){
 
     void* data = BF_Block_GetData(block);
 
-    //δημιουργια μεταδεδομενων του μπλοκ ευρετηριου
+    // create index block metadata
     BPLUS_INDEX_NODE index_node;
     index_node.num_keys = 0;
 
     int count;
     BF_GetBlockCounter(file_desc, &count);
-    index_node.block_id =  count - 1; //το id του block (-1 γιατι η αριθμηση ξεκιναει απο το 0)
+    index_node.block_id =  count - 1; // block id (-1 because numbering starts at 0)
     index_node.parent_id = -1;
     index_node.is_data_node = 0;
 
-    //αντιγραφη των μεταδεδομενων στο block
+    // copy metadata into block
     memcpy(data, &index_node, sizeof(BPLUS_INDEX_NODE));
 
     
-    BF_Block_SetDirty(block); //τροποποιησαμε το block αρα το κανουμε dirty
-    CALL_BF(BF_UnpinBlock(block)); //δεν το χρειαζομαστε πια
-    BF_Block_Destroy(&block); //καταστροφη του δεικτη στο block
+    BF_Block_SetDirty(block); // block changed, mark it dirty
+    CALL_BF(BF_UnpinBlock(block)); // no longer needed
+    BF_Block_Destroy(&block); // destroy block pointer
 
-    //ενημερωση block 0 με τα μεταδεδομενα
+    // update block 0 metadata
     BF_Block* block0;
     BF_Block_Init(&block0);
     CALL_BF(BF_GetBlock(file_desc, 0, block0));
@@ -57,7 +57,7 @@ BPLUS_INDEX_NODE* get_metadata_indexnode(int file_desc, int block_id){
 
     BPLUS_INDEX_NODE* index_node;
 
-    //αντιγραφη των μεταδεδομενων απο το block στην δομη index_node
+    // copy metadata from block to index_node structure
     index_node = (BPLUS_INDEX_NODE*)(data);
 
     CALL_BF(BF_UnpinBlock(block));
@@ -67,75 +67,76 @@ BPLUS_INDEX_NODE* get_metadata_indexnode(int file_desc, int block_id){
 }
 
 
-// Προσθηκη ζευγους κλειδι-δεικτης σε ενα μπλοκ ευρετηριου
-// Η συναρτηση δεχεται το id του block που σπαει(left_child_id), 
-// καθως και το id του block που δημιουργειται κατα το split(right_child_id)
-// Το κλειδι key ειναι το μικροτερο του νεου block(right_child_id) και ειναι αυτο που πρεπει να εισαχθει ως δεικτης.
+// Add a key-pointer pair to an index block
+// Function accepts the id of the block that split (left_child_id),
+// and the id of the block created by the split (right_child_id)
+// key is the smallest key of the new block (right_child_id),
+// and must be inserted into the index block.
 void insert_key_indexnode(int fd, int id_index_node, BPLUS_INFO* bplus_info, int key, int left_child_id, int right_child_id){
 
     BF_Block* block;
     BF_Block_Init(&block);
     
-    //αποθηκευση του block ευρετηριου στον δεικτη block
+    // load index block into pointer block
     CALL_BF(BF_GetBlock(fd, id_index_node, block));
     void* data = BF_Block_GetData(block);
-    BPLUS_INDEX_NODE* metadata_index_node = get_metadata_indexnode(fd, id_index_node); //μεταδεδομενα του block
+    BPLUS_INDEX_NODE* metadata_index_node = get_metadata_indexnode(fd, id_index_node); // block metadata
 
 
-    //αν το μπλοκ ευρετηριου ειναι κενο, δηλαδη δημιουργηθηκε νεο μπλοκ ευρετηριου
-    //πχ μετα απο split ενος block δεδομενων
+    // if index block is empty (newly created)
+    // e.g. after splitting a data block
     if(metadata_index_node->num_keys == 0){
-        memcpy(data + sizeof(BPLUS_INDEX_NODE), &left_child_id, sizeof(int)); //αριστερα του κλειδιου
-        memcpy(data + sizeof(BPLUS_INDEX_NODE) + sizeof(int), &key, sizeof(int)); //το κλειδι
-        memcpy(data + sizeof(BPLUS_INDEX_NODE) + 2 * sizeof(int), &right_child_id, sizeof(int)); //δεξια του κλειδιου
+        memcpy(data + sizeof(BPLUS_INDEX_NODE), &left_child_id, sizeof(int)); // left of key
+        memcpy(data + sizeof(BPLUS_INDEX_NODE) + sizeof(int), &key, sizeof(int)); // key
+        memcpy(data + sizeof(BPLUS_INDEX_NODE) + 2 * sizeof(int), &right_child_id, sizeof(int)); // right of key
     }
 
     else{
-        //αν το μπλοκ ευρετηριου δεν ειναι κενο πρεπει να βρουμε την θεση που θα μπει το νεο κλειδι
+        // if block is not empty, find where the new key should be inserted
         int current_key;
         bool is_max = true;
-        int pos = 0; //θεση που θα μπει το νεο κλειδι
+        int pos = 0; // insertion position of new key
 
-        //για i = 1, παιρνουμε το πρωτο κλειδι
-        //για i = 0, εχουμε τον πρωτο δεικτη
+        // for i = 1 we read the first key
+        // for i = 0 we have the first pointer
         for(int i = 1; i <= 2 * metadata_index_node->num_keys + 1; i+=2){
 
             memcpy(&current_key, data + sizeof(BPLUS_INDEX_NODE) + i * sizeof(int), sizeof(int));
 
-            //αν το νεο κλειδι ειναι μικροτερο απο το κλειδι της θεσης i πρεπει να μπει πριν απο αυτο
+            // if new key is smaller than key at position i, insert before it
             if(key < current_key){
         
                 is_max = false;
 
-                pos = i; //θεση που θα μπει το νεο κλειδι
+                pos = i; // insertion position of new key
 
                 break;
             }
         }
 
-        //αν ειναι το μεγιστο κλειδι, πρεπει να το προσθεσουμε στο τελος μαζι με εναν δεικτη στο δεξι παιδι
+        // if it is the largest key, append at the end with right-child pointer
         if(is_max == true){
 
             memcpy(data + sizeof(BPLUS_INDEX_NODE) + (2 * metadata_index_node->num_keys + 1) * sizeof(int), &key, sizeof(int));
             memcpy(data + sizeof(BPLUS_INDEX_NODE) + (2 * metadata_index_node->num_keys + 2) * sizeof(int), &right_child_id, sizeof(int));
         }
         else{
-            // μετακινηση των ζευγων (κλειδι + δεικτης) κατα μια θεση δεξια(ως προς το ζευγος), 
-            // ωστε να μπει το νεο ζευγος(κλειδι + δεικτης) στην θεση pos
+            // shift (key + pointer) pairs one position right
+            // so the new pair can be inserted at pos
             void* tempDest = data + sizeof(BPLUS_INDEX_NODE) + (pos + 2) * sizeof(int);
             void* tempSrc = data + sizeof(BPLUS_INDEX_NODE) + pos * sizeof(int);
             memmove(tempDest, tempSrc, (2 * metadata_index_node->num_keys + 1 - pos) * sizeof(int));
             
-            //εισαγωγη του νεου κλειδιου 
+            // insert new key
             memcpy(tempSrc, &key, sizeof(int));
 
-            //εισαγωγη νεου δεικτη δεξια απο το κλειδι
+            // insert new pointer to the right of the key
             memcpy(tempSrc + sizeof(int), &right_child_id, sizeof(int));  
         }        
         
     }
 
-    metadata_index_node->num_keys++; //αυξανουμε τον αριθμο των κλειδιων
+    metadata_index_node->num_keys++; // increase number of keys
 
     BF_Block_SetDirty(block);
     CALL_BF(BF_UnpinBlock(block));
@@ -143,25 +144,25 @@ void insert_key_indexnode(int fd, int id_index_node, BPLUS_INFO* bplus_info, int
 
 }
 
-// σπαει ενα block ευρετηριου σε δυο και εισαγει το μεσαιο κλειδι στον γονεα.
-// Δεχεται ως παραμετρους το αρχειο, τα μεταδεδομενα του bplus, το id του block που θα σπασει, το κλειδι που θα εισαχθει 
-// και το id του block που πρεπει να εισαχθει ως δεικτης
+// Split an index block in two and insert the middle key into its parent.
+// Parameters: file descriptor, B+ metadata, id of the block to split,
+// key to insert, and child block id to insert as pointer.
 int split_index_node(int fd, BPLUS_INFO* bplus_info, int index_node_id, int key_to_insert, int child_id){
 
-    // data block στο οποιο θα δειχνει ο νεος δεικτης που θα εισαχθει
+    // data block pointed to by the new pointer to insert
     BF_Block* child;
     BF_Block_Init(&child);
     CALL_BF(BF_GetBlock(fd, child_id, child));
     BPLUS_DATA_NODE* metadata_child = get_metadata_datanode(fd, child_id);
 
-    //######## αρχικο block ευρετηριου ##########//
+    //######## original index block ##########//
     BF_Block* block1;
     BF_Block_Init(&block1);
     CALL_BF(BF_GetBlock(fd, index_node_id, block1));
     void* data1 = BF_Block_GetData(block1);
     BPLUS_INDEX_NODE* metadata1 = get_metadata_indexnode(fd, index_node_id);
 
-    //####### νεο block ευρετηριου ##########//
+    //####### new index block ##########//
     int new_index_node_id = create_index_node(fd, bplus_info);
     BF_Block* block2;
     BF_Block_Init(&block2);
@@ -170,41 +171,41 @@ int split_index_node(int fd, BPLUS_INFO* bplus_info, int index_node_id, int key_
     BPLUS_INDEX_NODE* metadata2 = get_metadata_indexnode(fd, new_index_node_id);
 
 
-    //######## ισομοιρασμος δεικτων κ κλειδιων ########//
+    //######## even distribution of pointers and keys ########//
     int split_point = (metadata1->num_keys) / 2; 
 
 
     int pos = 0;
     bool is_max = true;
     int current_key;
-    int keys[metadata1->num_keys + 1]; //πινακας με τα κλειδια
+    int keys[metadata1->num_keys + 1]; // array of keys
 
     int current_p;
-    int pointers[metadata1->num_keys + 2]; //πινακας με τους δεικτες
+    int pointers[metadata1->num_keys + 2]; // array of pointers
 
-    int j = 0; //index του πινακα keys
+    int j = 0; // index for keys array
 
-    //πόσα στοιχεία έχει το block πριν σπάσει
+    // number of elements in block before split
 
     int count_of_elements = 2 * metadata1->num_keys + 1;
 
     for(int i = 1; i <= count_of_elements; i += 2){
         
-        //αποθηκευση κλειδιου
+        // store key
         memcpy(&current_key, data1 + sizeof(BPLUS_INDEX_NODE) + i * sizeof(int), sizeof(int));
         keys[j] = current_key;
         
 
-        //επειδη προσπερναμε τον πιο αριστερο δεικτη, πρεπει να τον αποθηκευσουμε ξεχωριστα
-        if(i == 1){ //εαν εξεταζουμε το πρωτο κλειδι
+        // since we skip the leftmost pointer, store it separately
+        if(i == 1){ // when examining the first key
             memcpy(&current_p, data1 + sizeof(BPLUS_INDEX_NODE), sizeof(int));
             pointers[j] = current_p; 
         }
 
-        //αποθηκευση δεικτη δεξια απο το κλειδι
+        // store pointer to the right of key
         memcpy(&current_p, data1 + sizeof(BPLUS_INDEX_NODE) + (i + 1) * sizeof(int), sizeof(int));
-        // j + 1 γιατι ο δεικτης που αντιστοιχει σε καθε κλειδι ειναι στη θεση j + 1, αφου
-        // στην θεση 0 εχουμε τον πρωτο δεικτη
+        // j + 1 because pointer for each key is at j + 1,
+        // while position 0 stores the first pointer
         pointers[j + 1] = current_p;
         
         if(key_to_insert < current_key){
@@ -214,54 +215,54 @@ int split_index_node(int fd, BPLUS_INFO* bplus_info, int index_node_id, int key_
     }
     for(int i = 0; i < metadata1->num_keys; i++){
         if(key_to_insert < keys[i]){
-            pos = i; //αποθηκευση της θεσης που θα μπει το νεο κλειδι ως προς το indexing του πινακα
+            pos = i; // store insertion position according to array indexing
             break;
         }
     }
     
-    //αν το κλειδι ειναι το μεγιστο πρεπει να μπει στη τελευταια θεση του πινακα
+    // if key is maximum, insert at end of array
      if(is_max == true){
         pos = metadata1->num_keys; 
     }
 
-    //ενημερωνουμε το parent id του block που εισαγεται ως δεικτης
-    //αν ανηκει στο πρωτο μισο του block, ο γονεας παραμενει ο αρχικος index node
+    // update parent id of the block inserted as pointer
+    // if in first half, parent remains original index node
     if(pos < split_point){
         metadata_child->parent_id = index_node_id;
     }
-    //αν ανηκει στο δευτερο μισο του block, ο γονεας γινεται το νεο index node
+    // if in second half, parent becomes new index node
     else{
         metadata_child->parent_id = new_index_node_id;
     }
 
 
-    //μετακινηση κλειδιων απο τη θεση pos και μετα κατα μια θεση δεξια
+    // shift keys from pos one position to the right
     for(int i = metadata1->num_keys; i > pos; i--){
         keys[i] = keys[i - 1];
     }
 
 
-    //εισαγωγη του νεου κλειδιου στην θεση pos
+    // insert new key at pos
     keys[pos] = key_to_insert;
 
 
-    //μετακινηση δεικτων απο τη θεση pos + 1 και μετα κατα μια θεση δεξια
+    // shift pointers from pos + 1 one position to the right
     for(int i = metadata1->num_keys + 1; i > pos + 1; i--){
         pointers[i] = pointers[i - 1];
     }
 
-    //εισαγωγη του νεου δεικτη στην θεση pos + 1, δηλαδη δεξια του νεου κλειδιου
+    // insert new pointer at pos + 1, i.e. right of new key
     pointers[pos + 1] = child_id;
 
-    //ευρεση μεσαιου κλειδιου, που πρεπει να ανεβει πανω
-    //αν ο αριθμος κλειδιων ειναι περιττος, τοτε θα παρει ακριβως το μεσαιο κλειδι: 5, 10, 15 με split point = 1 και keys[1] = 10
-    //αλλιως: 5, 10, 15, 20 με split point = 2 και keys[2] = 15
+    // find middle key to be promoted
+    // odd number of keys: exact middle key is promoted
+    // even number of keys: upper middle key is promoted
     int key_to_move_up = keys[split_point];
 
 
-    //μετακινηση των κλειδιων μεχρι και το split point - 1 στο παλιο block
+    // move keys up to split point - 1 into old block
     for(int i = 0; i < split_point; i++){
-        //τον πρωτο δεικτη(ο αριστερος) πρεπει να μπει πριν το πρωτο κλειδι κ αμεσως μετα τα μεταδεδομενα
+        // first (leftmost) pointer must be placed before first key
         if (i == 0){
             memcpy(data1 + sizeof(BPLUS_INDEX_NODE), &pointers[i], sizeof(int));
         }
@@ -274,8 +275,8 @@ int split_index_node(int fd, BPLUS_INFO* bplus_info, int index_node_id, int key_
     for(int i = split_point + 1; i <= metadata1->num_keys; i++){
 
         if(i == split_point + 1){
-            // θελουμε να παρουμε τον δεικτη που αντιστοιχει στο κλειδι που μετακινειται πανω
-            // ωστε να τοποθετηθει πρωτος στο νεο block
+            // take pointer corresponding to promoted key
+            // so it becomes first pointer in new block
             memcpy(data2 + sizeof(BPLUS_INDEX_NODE), &pointers[split_point + 1], sizeof(int));
         }
         
@@ -288,18 +289,18 @@ int split_index_node(int fd, BPLUS_INFO* bplus_info, int index_node_id, int key_
     
 
     
-    int old_num_keys = metadata1->num_keys; //αριθμος κλειδιων του παλιου block αρχικα
-    //ενημερωση μεταδεδομενων των δυο index nodes
+    int old_num_keys = metadata1->num_keys; // initial key count in old block
+    // update metadata of both index nodes
     metadata1->num_keys = split_point;
     
-    //αν το αρχικο μεγεθος των κλειδιων ειναι ζυγο(πχ για 4 κλειδια εχουμε split point = 2)
-    //τοτε καθε block παιρνει τον ιδιο αριθμο κλειδιων, αφου το μεσαιο θα αφαιρεθει
+    // if initial number of keys is even (e.g. 4 keys => split point 2)
+    // each block gets same number of keys after removing promoted key
     if((old_num_keys) % 2 == 0){
         metadata2->num_keys = split_point;
     }
     
-    //αν ειναι μονο το αρχικο μεγεθος πχ για 7 κλειδια εχουμε split point = 3 
-    //και το ενα μπλοκ θα παρει 3 κλειδια κ το αλλο 4
+    // if initial number is odd (e.g. 7 keys => split point 3)
+    // one block gets 3 keys and the other gets 4
     else{ 
         metadata2->num_keys = split_point + 1;
     }
@@ -319,7 +320,7 @@ int split_index_node(int fd, BPLUS_INFO* bplus_info, int index_node_id, int key_
     CALL_BF(BF_UnpinBlock(child));
     BF_Block_Destroy(&child);
 
-    //############ Διαχειριση του γονεα #############//
+    //############ Parent handling #############//
     if(metadata1->parent_id == -1){
         int new_root_id = create_index_node(fd, bplus_info);
         
@@ -346,12 +347,12 @@ int split_index_node(int fd, BPLUS_INFO* bplus_info, int index_node_id, int key_
     }
 
     else{
-        //αν ο γονεας εχει χωρο, εισαγωγη εκει
+        // if parent has space, insert there
         if(is_full_indexnode(fd, metadata1->parent_id, bplus_info) == false){
             insert_key_indexnode(fd, metadata1->parent_id, bplus_info, key_to_move_up, index_node_id, new_index_node_id);
             metadata2->parent_id = metadata1->parent_id;
         }
-        //αλλιως αναδρομικη κληση της split_index_node
+        // otherwise recursively split parent index node
         else{
             return split_index_node(fd, bplus_info, metadata1->parent_id, key_to_move_up, new_index_node_id);
         }
@@ -409,41 +410,41 @@ void update_parents(int fd, BPLUS_INFO* bplus_info, int parent_id){
 
 }
 
-// εκτυπωνει τα μεταδεδομενα ενος index node καθως και τους δεικτες με τα κλειδια του
+// prints metadata of an index node and its pointers/keys
 void print_index_node(int fd, int id){
-    // Άνοιγμα αρχείου σε λειτουργία εγγραφής
+    // Open file in append mode
     FILE* file = fopen("output.txt", "a");
     if (file == NULL) {
         perror("Error opening file");
         return;
     }
 
-    // Λήψη του block
+    // Get block
     BF_Block* block;
     BF_Block_Init(&block);
     CALL_BF(BF_GetBlock(fd, id, block));
 
-    // Λήψη δεδομένων
+    // Get data
     void* data = BF_Block_GetData(block);
     BPLUS_INDEX_NODE* metadata = get_metadata_indexnode(fd, id);
 
-    // Εκτύπωση μεταδεδομένων
+    // Print metadata
     fprintf(file, "Block id: %d\n", metadata->block_id);
     fprintf(file, "Number of keys: %d\n", metadata->num_keys);
     fprintf(file, "Parent id: %d\n", metadata->parent_id);
 
-    // Εκτύπωση κλειδιών και δεικτών
+    // Print keys and pointers
     for (int i = 1; i < 2 * metadata->num_keys + 1; i += 2) {
         int key;
         int child_id;
 
-        // Πρώτος δείκτης (αριστερός)
+        // First pointer (left)
         if (i == 1) {
             memcpy(&child_id, data + sizeof(BPLUS_INDEX_NODE), sizeof(int));
             fprintf(file, "%d | ", child_id);
         }
 
-        // Κλειδί και δείκτης
+        // Key and pointer
         memcpy(&key, data + sizeof(BPLUS_INDEX_NODE) + i * sizeof(int), sizeof(int));
         memcpy(&child_id, data + sizeof(BPLUS_INDEX_NODE) + (i + 1) * sizeof(int), sizeof(int));
         fprintf(file, "Key: %d | %d | ", key, child_id);
@@ -451,17 +452,17 @@ void print_index_node(int fd, int id){
 
     fprintf(file, "\n\n");
 
-    // Αποδέσμευση πόρων
+    // Release resources
     CALL_BF(BF_UnpinBlock(block));
     BF_Block_Destroy(&block);
 
-    // Κλείσιμο αρχείου
+    // Close file
     fclose(file);
 }
 
 
 
-// επιστρεφει true αν το index node με id ειναι γεματο και false αν δεν ειναι
+// returns true if index node with id is full, false otherwise
 bool is_full_indexnode(int fd, int id, BPLUS_INFO* bplus_info){
     
     bool is_full = false;
@@ -472,9 +473,6 @@ bool is_full_indexnode(int fd, int id, BPLUS_INFO* bplus_info){
 
     void* data = BF_Block_GetData(block);
     BPLUS_INDEX_NODE* metadata = get_metadata_indexnode(fd, id);
-
-    // int total_elements = (BF_BLOCK_SIZE - sizeof(BPLUS_INDEX_NODE)) / sizeof(int);
-    // int max_keys = (total_elements - 1) / 2;
 
     int max_keys = bplus_info->max_keys_per_index;
 

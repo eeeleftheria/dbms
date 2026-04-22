@@ -20,11 +20,11 @@
 
 typedef struct {
     int is_data_node;
-    int num_records; // αριθμος εγγραφων
-    int block_id;    // id του block
-    int next_block;  // id του επομενου block δεδομενων
-    int minKey;     // το μικροτερο κλειδι του block
-    int parent_id; //id του γονεα
+    int num_records; // number of records
+    int block_id;    // block id
+    int next_block;  // id of next block
+    int minKey;     // the min key value of the block
+    int parent_id; // parent id
 } BPLUS_DATA_NODE;
 
 

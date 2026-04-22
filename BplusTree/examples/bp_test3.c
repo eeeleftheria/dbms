@@ -8,15 +8,15 @@
 #include "bp_indexnode.h"
 
 //#############################################################//
-//   MAIN.C  - ΜΙΚΡΟΤΕΡΗ ΧΩΡΗΤΙΚΟΤΗΤΑ ΣΕ ΚΛΕΙΔΙΑ ΚΑΙ ΕΓΓΡΑΦΕΣ  //
+//   MAIN.C  - SMALLER CAPACITY FOR KEYS AND RECORDS          //
 // ########################################################### //
 
 #define RECORDS_NUM 1950 // you can change it if you want
 #define FILE_NAME_5 "data5.db"
 
-// Σε αυτό το τεστ, δημιουργούμε ενα B+ δέντρο με μικρότερη χωρητικότητα σε κλειδιά και εγγραφές
-// προκειμένου να αναδείξουμε την σωστή λειτουργία του B+ δέντρου και στην περίπτωση που γίνονται
-// περισσότερα splits σε index nodes και data nodes και αυξάνεται το ύψος του δέντρου.
+// In this test, we create a B+ tree with smaller capacity for keys and records
+// to demonstrate correct B+ tree behavior even when more splits occur
+// in index nodes and data nodes, increasing the tree height.
 
 
 #define MAX_KEYS_PER_INDEX 6
@@ -66,7 +66,7 @@ void insertEntries(){
         
         // printf("inserting reec %d\n", record.id);
 
-        // Record tmpRec;  //Αντί για malloc
+        // Record tmpRec;  // Instead of malloc
         // Record* result=&tmpRec;
         // int x = BP_GetEntry(file_desc, info, record.id, &result);
         // if(x == -1){

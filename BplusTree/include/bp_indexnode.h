@@ -9,9 +9,9 @@
 
 typedef struct{
     int is_data_node;
-    int num_keys; // αριθμος κλειδιων (ετσι μπορούμε να βρούμε και των αριθμό pointer)
-    int block_id; // id του block
-    int parent_id; // id του γονεα
+    int num_keys; // number of keys (this way we also know the number of pointers)
+    int block_id; // block id
+    int parent_id; // parent id
 
 }BPLUS_INDEX_NODE;
 
