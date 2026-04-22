@@ -31,3 +31,7 @@ It is responsible for:
 
 ## How to run
 Each project contains its own `Makefile` and `README` where you can find all the necessary information on how to run each project. 
+
+## 👥  Team
+- Stefanos Tzaferis
+- Eleftheria Galiatsatou
